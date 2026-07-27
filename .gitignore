@@ -1,0 +1,10 @@
+/target/
+.storyforge.local.toml
+/wizarding-world-private/
+/campaigns-private/
+*.log
+*.tmp
+*.bak
+.env
+.idea/
+.vscode/settings.json
