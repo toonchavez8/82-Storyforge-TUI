@@ -55,7 +55,7 @@ Use these task lists as the live project checklist.
 - [x] Add workspace lints.
 - [x] Add generated/private file ignores.
 - [x] Print engine and content schema diagnostic.
-- [ ] Commit the initial workspace.
+- [x] Commit the initial workspace.
 
 ### M1: terminal shell and character creation
 
