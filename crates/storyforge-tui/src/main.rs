@@ -1,9 +1,12 @@
 //! Terminal executable for Storyforge.
+mod app;
 
-fn main() {
-    println!(
-        "{} content schema {}",
-        storyforge_core::engine_name(),
-        storyforge_content::schema_version()
-    );
+use color_eyre::Result;
+
+use app::App;
+
+fn main() -> Result<()> {
+    color_eyre::install()?;
+    ratatui::run(|terminal| App::default().run(terminal))?;
+    Ok(())
 }
