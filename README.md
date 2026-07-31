@@ -6,7 +6,7 @@ Current milestone: M0 boot workspace. The Rust workspace exists, the crates comp
 
 ## Run locally
 
-```powershell
+```bash
 cargo run -p storyforge-tui
 ```
 
@@ -23,17 +23,28 @@ watch, rebuild, and rerun.
 
 Install the watcher once:
 
-```powershell
+```bash
 cargo install cargo-watch
 ```
 
-Then run one of these from the workspace root:
+Then run one of these from the workspace root.
+
+On Windows:
 
 ```powershell
 .\scripts\dev.ps1
 .\scripts\dev.ps1 check
 .\scripts\dev.ps1 clippy
 .\scripts\dev.ps1 test
+```
+
+On macOS/Linux/Git Bash/WSL:
+
+```bash
+./scripts/dev.sh
+./scripts/dev.sh check
+./scripts/dev.sh clippy
+./scripts/dev.sh test
 ```
 
 The default `run` mode restarts `storyforge-tui` after file changes. Because the
@@ -150,7 +161,7 @@ The detailed plot belongs in campaign data. The engine should model arcs, condit
 
 Run these before milestone commits:
 
-```powershell
+```bash
 cargo fmt --all
 cargo check --workspace --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings

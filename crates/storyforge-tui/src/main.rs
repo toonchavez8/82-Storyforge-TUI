@@ -1,5 +1,10 @@
 //! Terminal executable for Storyforge.
+
+mod action;
 mod app;
+mod layout;
+mod theme;
+mod ui;
 
 use color_eyre::Result;
 

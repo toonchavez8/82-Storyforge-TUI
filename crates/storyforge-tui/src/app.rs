@@ -1,66 +1,126 @@
+use crossterm::event::{self, Event};
+use ratatui::DefaultTerminal;
 use std::io;
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crate::{action::UiAction, theme::Theme, ui};
 
-use ratatui::{
-    DefaultTerminal, Frame,
-    layout::Alignment,
-    widgets::{Block, Borders, Paragraph},
-};
-
-// keep the app state in one struct so the rest of the program can ask
-// whether the UI should keep running or shut down.
-#[derive(Debug, Default)]
+/// Holds every piece of visible application state.
+///
+/// `render()` only reads from `App`, so tests and snapshots can construct a
+/// state, draw it, and compare the output without touching the terminal.
+#[derive(Debug)]
 pub struct App {
-    //flip this to true when the user presses a quit key.
-    should_quit: bool,
+    /// Set to `true` when the user chooses to leave the app.
+    pub(crate) should_quit: bool,
+    /// The screen currently shown to the player.
+    pub(crate) screen: Screen,
+    /// Which compact-mode tab or standard-mode pane has keyboard focus.
+    pub(crate) focus: Focus,
+    /// Index of the selected compact tab, wrapped with modulo so it stays valid.
+    pub(crate) selected_tab: usize,
+    /// Active theme used by every widget. Stored here so the renderer and
+    /// future settings commands share the same palette.
+    pub(crate) theme: Theme,
+    /// Current spell-slot count for levels 1 through 9.
+    pub(crate) spell_slots_current: [u8; 9],
+    /// Maximum spell-slot count for levels 1 through 9.
+    pub(crate) spell_slots_max: [u8; 9],
+    /// Temporary spell-slot count for levels 1 through 9.
+    pub(crate) spell_slots_temp: [u8; 9],
+    /// `(current, max)` sorcery points. `None` means the character does not
+    /// have the feature, so the UI hides the SP row entirely.
+    pub(crate) sorcery_points: Option<(u8, u8)>,
+}
+
+/// Top-level screens the player can open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Screen {
+    #[default]
+    Story,
+    Character,
+    Journal,
+    Map,
+    Help,
+}
+
+/// Keyboard focus target inside a screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Focus {
+    #[default]
+    Actions,
+    /// Reserved for a future story-pane focus state.
+    #[expect(dead_code)]
+    Story,
+    Log,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            should_quit: false,
+            screen: Screen::default(),
+            focus: Focus::default(),
+            selected_tab: 0,
+            theme: Theme::default(),
+            // Demo caster: 1st-level slots plus sorcery points so the layout
+            // has realistic spell-resource data to render.
+            spell_slots_current: [3, 2, 0, 0, 0, 0, 0, 0, 0],
+            spell_slots_max: [4, 2, 0, 0, 0, 0, 0, 0, 0],
+            spell_slots_temp: [0; 9],
+            sorcery_points: Some((3, 3)),
+        }
+    }
 }
 
 impl App {
-    // take ownership of the app state here and keep drawing frames until
-    // something tells the app to quit.
+    /// Owns the application state and runs the main loop until the user quits.
+    /// Rendering is delegated to `ui::render`, so this loop stays focused on
+    /// events and state updates.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if ratatui cannot draw a frame or read input.
     pub fn run(mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        // I keep looping while the app is still active.
         while !self.should_quit {
-            // ask ratatui to redraw the full screen using my render function.
-            terminal.draw(Self::render)?;
-            // wait for the next terminal event, then let the app decide what
-            // to do with it.
+            terminal.draw(|frame| ui::render(frame, &self))?;
             self.handle_event(&event::read()?);
         }
 
-        // return Ok once the user has chosen to leave the app.
         Ok(())
     }
 
-    // render the current UI frame. This does not need self yet because the
-    // screen is static for now.
-    fn render(frame: &mut Frame) {
-        // build the text widget that appears in the terminal.
-        let message = Paragraph::new("Storyforge is awake! \n \n Press q or Esc to leave.")
-            .alignment(Alignment::Center)
-            .block(Block::default().title("Storyforge").borders(Borders::ALL));
-
-        // draw the widget into the full available terminal area.
-        frame.render_widget(message, frame.area());
-    }
-
-    // inspect input events and update my app state when one matters.
+    /// Handles one crossterm event.
+    ///
+    /// Mouse, resize, and focus events are ignored here. Resize still reaches
+    /// `render` through the live frame area, so the layout adapts automatically.
     fn handle_event(&mut self, event: &Event) {
-        // we only care about keyboard events here, so mouse/resize/focus events
-        // are ignored.
         let Event::Key(key) = event else {
             return;
         };
 
-        // only react to the initial key press, not repeat or release events.
-        if key.kind != KeyEventKind::Press {
-            return;
-        }
+        // Convert the raw key into a semantic UI action before applying it.
+        // This keeps the event loop small and makes keyboard mappings easy to
+        // test in isolation.
+        let action = UiAction::from(*key);
+        self.update(action);
+    }
 
-        // mark the app as done when the user presses q or Esc.
-        if matches!(key.code, KeyCode::Char('q') | KeyCode::Esc) {
-            self.should_quit = true;
+    /// Applies one UI action to the application state.
+    ///
+    /// All navigation and quitting flows through here, which keeps the behavior
+    /// centralized and deterministic.
+    fn update(&mut self, action: UiAction) {
+        match action {
+            UiAction::OpenCharacter => self.screen = Screen::Character,
+            UiAction::OpenJournal => self.screen = Screen::Journal,
+            UiAction::OpenMap => self.screen = Screen::Map,
+            UiAction::OpenHelp => self.screen = Screen::Help,
+            // Back from a subscreen returns to the story screen; from the story
+            // screen it quits, matching the Esc key behavior.
+            UiAction::Back if self.screen != Screen::Story => self.screen = Screen::Story,
+            UiAction::Back | UiAction::Quit => self.should_quit = true,
+            // Up, Down, and Confirm are reserved for future lists and forms.
+            UiAction::Up | UiAction::Down | UiAction::Confirm | UiAction::None => {}
         }
     }
 }
@@ -73,13 +133,11 @@ mod tests {
 
     #[test]
     fn q_should_request_quit() {
-        // start with a fresh app that should still be running.
         let mut app = App::default();
-        // create the same kind of key event the terminal would send for q.
         let key = KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE);
 
-        // send the key event into the app and expect it to request shutdown.
         app.handle_event(&Event::Key(key));
+
         assert!(app.should_quit);
     }
 }
