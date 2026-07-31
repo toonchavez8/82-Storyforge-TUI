@@ -16,6 +16,30 @@ Expected output:
 Storyforge content schema 1
 ```
 
+## Dev loop
+
+Rust TUIs do not have browser-style hot module replacement. The closest loop is
+watch, rebuild, and rerun.
+
+Install the watcher once:
+
+```powershell
+cargo install cargo-watch
+```
+
+Then run one of these from the workspace root:
+
+```powershell
+.\scripts\dev.ps1
+.\scripts\dev.ps1 check
+.\scripts\dev.ps1 clippy
+.\scripts\dev.ps1 test
+```
+
+The default `run` mode restarts `storyforge-tui` after file changes. Because the
+TUI process owns the terminal while it is running, some edits may not rerun until
+you quit the app with `q` or `Esc`.
+
 ## Workspace layout
 
 ```text
