@@ -1,7 +1,7 @@
 use ratatui::layout::Rect;
 
 /// Minimum terminal width for the UI to render anything useful.
-const MIN_WIDTH: u16 = 56;
+const MIN_WIDTH: u16 = 80;
 /// Minimum terminal height for the UI to render anything useful.
 const MIN_HEIGHT: u16 = 24;
 /// Width at which the UI can switch from compact to standard layout.

@@ -119,8 +119,13 @@ impl App {
             // screen it quits, matching the Esc key behavior.
             UiAction::Back if self.screen != Screen::Story => self.screen = Screen::Story,
             UiAction::Back | UiAction::Quit => self.should_quit = true,
-            // Up, Down, and Confirm are reserved for future lists and forms.
-            UiAction::Up | UiAction::Down | UiAction::Confirm | UiAction::None => {}
+            UiAction::Down => {
+                self.selected_tab = (self.selected_tab + 1) % 4;
+            }
+            UiAction::Up => {
+                self.selected_tab = self.selected_tab.checked_sub(1).unwrap_or(3);
+            }
+            UiAction::Confirm | UiAction::None => {}
         }
     }
 }
@@ -139,5 +144,26 @@ mod tests {
         app.handle_event(&Event::Key(key));
 
         assert!(app.should_quit);
+    }
+
+    #[test]
+    fn movement_should_cycle_through_tabs() {
+        let mut app = App::default();
+        app.update(crate::action::UiAction::Down);
+        assert_eq!(app.selected_tab, 1);
+        app.update(crate::action::UiAction::Down);
+        assert_eq!(app.selected_tab, 2);
+        app.update(crate::action::UiAction::Down);
+        assert_eq!(app.selected_tab, 3);
+        app.update(crate::action::UiAction::Down);
+        assert_eq!(app.selected_tab, 0);
+        app.update(crate::action::UiAction::Up);
+        assert_eq!(app.selected_tab, 3);
+        app.update(crate::action::UiAction::Up);
+        assert_eq!(app.selected_tab, 2);
+        app.update(crate::action::UiAction::Up);
+        assert_eq!(app.selected_tab, 1);
+        app.update(crate::action::UiAction::Up);
+        assert_eq!(app.selected_tab, 0);
     }
 }

@@ -7,6 +7,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+rand = "0.9"
+rand_chacha = { version = "0.9", features = ["serde"] }
 serde.workspace = true
 thiserror.workspace = true
 

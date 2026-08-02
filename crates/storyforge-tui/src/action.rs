@@ -29,16 +29,46 @@ impl From<KeyEvent> for UiAction {
         }
 
         match key.code {
-            KeyCode::Up => Self::Up,
-            KeyCode::Down => Self::Down,
+            KeyCode::Up | KeyCode::Char('w' | 'k') => Self::Up,
+            KeyCode::Down | KeyCode::Char('s' | 'j') => Self::Down,
             KeyCode::Enter => Self::Confirm,
             KeyCode::Esc => Self::Back,
             KeyCode::Char('c') => Self::OpenCharacter,
-            KeyCode::Char('j') => Self::OpenJournal,
+            KeyCode::Char('l') => Self::OpenJournal,
             KeyCode::Char('m') => Self::OpenMap,
             KeyCode::Char('?') => Self::OpenHelp,
             KeyCode::Char('q') => Self::Quit,
             _ => Self::None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::UiAction;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn vim_keys_map_to_correct_actions() {
+        let down = KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE);
+        let up = KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE);
+
+        assert_eq!(UiAction::from(down), UiAction::Down);
+        assert_eq!(UiAction::from(up), UiAction::Up);
+    }
+
+    #[test]
+    fn wasd_keys_map_to_correct_actions() {
+        let down = KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE);
+        let up = KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE);
+
+        assert_eq!(UiAction::from(down), UiAction::Down);
+        assert_eq!(UiAction::from(up), UiAction::Up);
+    }
+
+    #[test]
+    fn l_should_open_journel() {
+        let l = KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE);
+        assert_eq!(UiAction::from(l), UiAction::OpenJournal);
     }
 }

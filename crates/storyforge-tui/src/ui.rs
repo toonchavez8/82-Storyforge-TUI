@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph},
 };
 
+// file imports using crate
 use crate::{
     app::{App, Focus, Screen},
     layout::{LayoutMode, mode_for},
@@ -39,7 +40,7 @@ fn render_size_warning(frame: &mut Frame, theme: Theme) {
     let area = frame.area();
 
     let message = Text::from(vec![
-        Line::from("Storyforge needs at least 56 columns x 24 rows."),
+        Line::from("Storyforge needs at least 80 columns x 24 rows."),
         Line::from(format!("Current size: {} x {}", area.width, area.height)),
         Line::from("Resize the terminal or press q to quit."),
     ]);
@@ -111,7 +112,7 @@ fn render_header(frame: &mut Frame, area: Rect, theme: Theme) {
     let hint = Line::from(vec![
         Span::styled("q/Esc", Style::default().fg(theme.focus)),
         Span::styled(" quit  ", Style::default().fg(theme.muted)),
-        Span::styled("c/j/m/?", Style::default().fg(theme.focus)),
+        Span::styled("c/l/m/?", Style::default().fg(theme.focus)),
         Span::styled(" screens", Style::default().fg(theme.muted)),
     ]);
 
@@ -274,7 +275,7 @@ fn render_actions_panel(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme;
     let focused = app.focus == Focus::Actions;
 
-    let text = "\n[c] Character\n[j] Journal\n[m] Map\n[?] Help\n[Esc] Back/Quit";
+    let text = "\n[c] Character\n[l] Journal\n[m] Map\n[?] Help\n[Esc] Back/Quit";
 
     render_pane(frame, area, "Actions", text, theme, focused);
 }
