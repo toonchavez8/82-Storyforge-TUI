@@ -1,17 +1,15 @@
-//! Deterministic rules and state transitions for Storyforge campaigns.
+//! Core gameplay engine for Storyforge.
+//!
+//! This crate owns the game's state, command processing, event generation,
+//! and deterministic simulation. User interfaces should interact with the
+//! engine by dispatching `GameCommand`s and rendering the resulting
+//! `GameState`.
+mod command;
+mod engine;
+mod id;
+mod state;
 
-/// Returns the engine name used in diagnostics.
-#[must_use]
-pub const fn engine_name() -> &'static str {
-    "Storyforge"
-}
-
-#[cfg(test)]
-mod tests {
-    use super::engine_name;
-
-    #[test]
-    fn engine_name_should_be_stable() {
-        assert_eq!(engine_name(), "Storyforge");
-    }
-}
+pub use command::GameCommand;
+pub use engine::{GameEngine, apply_events, handle_command};
+pub use id::{ContentId, IdError};
+pub use state::{GameEvent, GameState};
