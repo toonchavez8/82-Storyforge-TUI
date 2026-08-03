@@ -62,11 +62,10 @@ fn render_size_warning(frame: &mut Frame, theme: Theme) {
 /// one selected detail tab, and footer.
 fn render_compact(frame: &mut Frame, app: &App) {
     let area = frame.area();
-    let theme = app.theme;
 
     let [header_area, body_area, footer_area] = vertical_main_layout(area);
 
-    render_header(frame, header_area, theme);
+    render_header(frame, header_area, app);
     render_compact_body(frame, body_area, app);
     render_footer(frame, footer_area, app);
 }
@@ -75,11 +74,10 @@ fn render_compact(frame: &mut Frame, app: &App) {
 /// panel and a four-column detail panel, and footer.
 fn render_standard(frame: &mut Frame, app: &App) {
     let area = frame.area();
-    let theme = app.theme;
 
     let [header_area, body_area, footer_area] = vertical_main_layout(area);
 
-    render_header(frame, header_area, theme);
+    render_header(frame, header_area, app);
     render_standard_body(frame, body_area, app);
     render_footer(frame, footer_area, app);
 }
@@ -108,16 +106,26 @@ fn vertical_main_layout(area: Rect) -> [Rect; 3] {
 }
 
 /// Top bar with the app title and keyboard hints.
-fn render_header(frame: &mut Frame, area: Rect, theme: Theme) {
+fn render_header(frame: &mut Frame, area: Rect, app: &App) {
+    let theme = app.theme;
+
     let hint = Line::from(vec![
         Span::styled("q/Esc", Style::default().fg(theme.focus)),
         Span::styled(" quit  ", Style::default().fg(theme.muted)),
         Span::styled("c/l/m/?", Style::default().fg(theme.focus)),
-        Span::styled(" screens", Style::default().fg(theme.muted)),
+        Span::styled(" screens  ", Style::default().fg(theme.muted)),
+        Span::styled("i", Style::default().fg(theme.focus)),
+        Span::styled(" inv  ", Style::default().fg(theme.muted)),
+        Span::styled("j/k", Style::default().fg(theme.focus)),
+        Span::styled(" focus  ", Style::default().fg(theme.muted)),
+        Span::styled("t", Style::default().fg(theme.focus)),
+        Span::styled(" theme", Style::default().fg(theme.muted)),
     ]);
 
+    let title = format!("Storyforge - {}", app.theme_id.name());
+
     let block = Block::default()
-        .title("Storyforge")
+        .title(title.as_str())
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.accent))
         .border_type(BorderType::Rounded);
@@ -135,8 +143,7 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme;
     let mut spans: Vec<Span> = Vec::new();
 
-    // Build the compact spell-slot summary. Only include levels that the
-    // character actually has, either as normal max slots or temporary slots.
+    // Build the compact spell-slot summary.
     spans.push(Span::styled("SLOTS ", Style::default().fg(theme.muted)));
     let mut any_slot = false;
     for level in 0..9 {
@@ -147,6 +154,7 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
         }
 
         any_slot = true;
+
         let current = app.spell_slots_current[level];
         spans.push(Span::styled(
             format!("{}:{current}/{max}", level + 1),
@@ -183,6 +191,15 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
         ));
     }
 
+    // Add a short control reminder after the spell resources.
+    spans.push(Span::styled(" | ", Style::default().fg(theme.muted)));
+    spans.push(Span::styled("j/k", Style::default().fg(theme.focus)));
+    spans.push(Span::styled(" focus  ", Style::default().fg(theme.muted)));
+    spans.push(Span::styled("w/a/s/d", Style::default().fg(theme.focus)));
+    spans.push(Span::styled(" move  ", Style::default().fg(theme.muted)));
+    spans.push(Span::styled("t", Style::default().fg(theme.focus)));
+    spans.push(Span::styled(" theme", Style::default().fg(theme.muted)));
+
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.accent));
@@ -194,37 +211,117 @@ fn render_footer(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(footer, area);
 }
 
-/// Compact body: story on top, then actions, then the currently selected tab.
+/// Compact body: story on top, then the currently selected tab.
+///
+/// A small actions preview is rendered between them unless the selected tab
+/// itself is already showing Actions, so the same content never appears twice.
 fn render_compact_body(frame: &mut Frame, area: Rect, app: &App) {
-    let parts = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
+    let actions_in_tab = app.selected_tab.is_multiple_of(4);
+
+    // Resolve the main body area first. When the inventory sidebar is open it
+    // takes a slice of `area` and we render the sidebar immediately.
+    let main_area = if app.inventory_open {
+        let [main_area, inventory_area] = inventory_split(area, mode_for(frame.area()));
+        render_inventory_panel(frame, inventory_area, app);
+        main_area
+    } else {
+        area
+    };
+
+    if actions_in_tab {
+        let [story_area, tab_area]: [Rect; 2] =
+            Layout::vertical([Constraint::Percentage(40), Constraint::Min(8)]).areas(main_area);
+
+        render_story_panel(frame, story_area, app);
+        render_selected_tab(frame, tab_area, app);
+    } else {
+        // `Layout::areas()` returns `[Rect; N]` through a const generic. The
+        // compiler can't infer `N` from the constraints alone, so the type
+        // annotation has to be explicit. Using an array here also gives a
+        // compile-time guarantee that the layout produces exactly three regions.
+        let [story_area, actions_area, tab_area]: [Rect; 3] = Layout::vertical([
             Constraint::Percentage(40),
             Constraint::Length(5),
             Constraint::Min(8),
         ])
-        .split(area);
+        .areas(main_area);
 
-    render_story_panel(frame, parts[0], app);
-    render_actions_panel(frame, parts[1], app);
-    render_selected_tab(frame, parts[2], app);
+        render_story_panel(frame, story_area, app);
+        render_actions_panel(frame, actions_area, app);
+        render_selected_tab(frame, tab_area, app);
+    }
 }
 
 /// Standard body: large story panel on top, four-column detail grid below.
 fn render_standard_body(frame: &mut Frame, area: Rect, app: &App) {
-    let parts = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
-        .split(area);
+    if app.inventory_open {
+        let [main_area, inventory_area] = inventory_split(area, mode_for(frame.area()));
 
-    render_story_panel(frame, parts[0], app);
-    render_detail_grid(frame, parts[1], app);
+        let [story_area, detail_area]: [Rect; 2] =
+            Layout::vertical([Constraint::Percentage(45), Constraint::Percentage(55)])
+                .areas(main_area);
+
+        render_story_panel(frame, story_area, app);
+        render_detail_grid(frame, detail_area, app);
+        render_inventory_panel(frame, inventory_area, app);
+    } else {
+        let [story_area, detail_area]: [Rect; 2] =
+            Layout::vertical([Constraint::Percentage(45), Constraint::Percentage(55)]).areas(area);
+
+        render_story_panel(frame, story_area, app);
+        render_detail_grid(frame, detail_area, app);
+    }
+}
+
+/// Splits a body area into a main region and an inventory sidebar.
+///
+/// The sidebar width follows the requested ratios:
+/// - Standard layout: one third of the width.
+/// - Compact layout: one half of the width.
+/// - Too-small layout: seven eighths of the width.
+///
+/// The too-small branch is a fallback. The `TooSmall` warning normally
+/// renders instead of the body, so this branch is rarely visible.
+fn inventory_split(area: Rect, mode: LayoutMode) -> [Rect; 2] {
+    let inventory_width = match mode {
+        LayoutMode::Standard => area.width / 3,
+        LayoutMode::Compact => area.width / 2,
+        LayoutMode::TooSmall => area.width * 7 / 8,
+    };
+    let main_width = area.width.saturating_sub(inventory_width);
+
+    Layout::horizontal([
+        Constraint::Length(main_width),
+        Constraint::Length(inventory_width),
+    ])
+    .areas(area)
+}
+
+/// Renders the inventory sidebar with a temporary placeholder item list.
+fn render_inventory_panel(frame: &mut Frame, area: Rect, app: &App) {
+    let theme = app.theme;
+    let focused = app.focus == Focus::Inventory;
+
+    let mut lines = vec![String::new()];
+    for (index, item) in app.inventory_items.iter().enumerate() {
+        let marker = if index == app.inventory_selected {
+            ">"
+        } else {
+            " "
+        };
+        lines.push(format!("{marker} {item}"));
+    }
+    lines.push(String::new());
+    lines.push("[w/a/s/d] Move  [i] Close".to_owned());
+
+    render_pane(frame, area, "Inventory", lines.join("\n"), theme, focused);
 }
 
 /// Main narrative panel. Shows placeholder text per screen until the story
 /// content model is wired in.
 fn render_story_panel(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme;
+    let focused = app.focus == Focus::Story;
 
     let text = match app.screen {
         Screen::Story => "The academy doors stand open. What do you do?",
@@ -234,22 +331,7 @@ fn render_story_panel(frame: &mut Frame, area: Rect, app: &App) {
         Screen::Help => "Help text will appear here.",
     };
 
-    let border_color = if app.screen == Screen::Story {
-        theme.focus
-    } else {
-        theme.accent
-    };
-
-    let block = Block::default()
-        .title("Story")
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
-
-    let paragraph = Paragraph::new(text)
-        .style(Style::default().fg(theme.text).bg(theme.background))
-        .block(block);
-
-    frame.render_widget(paragraph, area);
+    render_pane(frame, area, "Story", text, theme, focused);
 }
 
 /// Four-column detail grid used in standard mode.
@@ -317,7 +399,7 @@ fn render_actions_panel(frame: &mut Frame, area: Rect, app: &App) {
 /// temporary slots, and long-rest recovery; this preview just lists the basics.
 fn render_character_panel(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme;
-    let focused = app.screen == Screen::Character;
+    let focused = app.focus == Focus::Character;
 
     let mut lines = vec!["".into()];
     lines.push("Level 1 caster".into());
@@ -332,7 +414,7 @@ fn render_character_panel(frame: &mut Frame, area: Rect, app: &App) {
 /// Quest tracker pane.
 fn render_quest_panel(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme;
-    let focused = app.screen == Screen::Journal;
+    let focused = app.focus == Focus::Quest;
 
     render_pane(
         frame,
@@ -371,10 +453,14 @@ fn render_pane(
     theme: Theme,
     focused: bool,
 ) {
+    // Use the full palette when this panel is focused. Dim every color when it
+    // is not, so the focused panel stands out.
+    let theme = if focused { theme } else { theme.dim() };
     let border_color = if focused { theme.focus } else { theme.accent };
 
     let block = Block::default()
         .title(title)
+        .title_style(Style::default().fg(border_color))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
 
