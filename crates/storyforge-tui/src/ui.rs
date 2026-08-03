@@ -270,12 +270,45 @@ fn render_detail_grid(frame: &mut Frame, area: Rect, app: &App) {
     render_log_panel(frame, columns[3], app);
 }
 
-/// Available action shortcuts. Focus styling shows which pane is active.
+/// Renders the actions pane.
+///
+/// When the Story screen is active this pane displays the currently available
+/// story choices. The selected choice is read directly from the game engine's
+/// state so rendering remains a pure operation.
+///
+/// For every other screen this pane falls back to showing the application's
+/// keyboard shortcuts.
+///
+/// Note that this function never dispatches commands or mutates game state.
+/// It simply reads the current state and renders it.
 fn render_actions_panel(frame: &mut Frame, area: Rect, app: &App) {
     let theme = app.theme;
     let focused = app.focus == Focus::Actions;
 
-    let text = "\n[c] Character\n[l] Journal\n[m] Map\n[?] Help\n[Esc] Back/Quit";
+    // While we're still wiring the content pipeline, the story choices are
+    // hard-coded. A later guide will load these from the active scene.
+    let text = if app.screen == Screen::Story {
+        // Read the selected choice directly from the gameplay engine.
+        let selected = app.engine.state().selected_choice;
+
+        // Prefix the currently selected option with '>' so the player can see
+        // which choice the keyboard is controlling.
+        let first = if selected == 0 {
+            "> Ask about the sealed gate."
+        } else {
+            "  Ask about the sealed gate."
+        };
+
+        let second = if selected == 1 {
+            "> Look for another route."
+        } else {
+            "  Look for another route."
+        };
+
+        format!("\n{first}\n{second}\n\n[j/k] Choose  [Enter] Confirm")
+    } else {
+        "\n[c] Character\n[l] Journal\n[m] Map\n[?] Help\n[Esc] Back/Quit".to_owned()
+    };
 
     render_pane(frame, area, "Actions", text, theme, focused);
 }
