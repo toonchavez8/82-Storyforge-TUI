@@ -7,9 +7,13 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+ron = "0.12.2"
 serde.workspace = true
+sha2 = "0.11.0"
 storyforge-core = { path = "../storyforge-core" }
 thiserror.workspace = true
+toml = "1.1.4"
+walkdir = "2.5.0"
 
 [lints]
 workspace = true
