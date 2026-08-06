@@ -1,0 +1,23 @@
+(
+    // This ID must match the manifest's entry-scene value.
+    id: "academy.scene.arrival",
+    title: "The Rain Gate",
+    body: [
+        "Rain ticks against the glass roof of the arrival hall.",
+        "Iren waits beside a sealed gate while the induction bells count down.",
+    ],
+    choices: [
+        (
+            id: "ask_gate",
+            label: "Ask Iren what sealed the gate.",
+            // Choice targets are optional, so RON wraps this ID in Some(...).
+            target: Some("academy.scene.debug-end"),
+        ),
+        (
+            id: "search_route",
+            label: "Search for another route.",
+            target: Some("academy.scene.debug-end"),
+        ),
+    ],
+    terminal: false,
+)

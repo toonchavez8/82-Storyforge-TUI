@@ -1,0 +1,9 @@
+(
+    id: "academy.scene.debug-end",
+    title: "Debug End",
+    body: [
+        "This temporary scene proves that scene targets can resolve.",
+    ],
+    choices: [],
+    terminal: true,
+)
